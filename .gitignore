@@ -1,3 +1,9 @@
 spreadsheets/*
+cards/processed_cards/*
+cards/unprocessed_cards/*
 
+# python
+__pycache__/
+
+# git
 !.gitkeep

@@ -1,9 +1,9 @@
 from PIL import Image
 
 
-class Border:
+class Card:
     """
-    A layered image representing a card's border and all the collection info on it.
+    A layered image representing a card and all the collection info on it.
 
     Attributes
     ----------
@@ -29,7 +29,7 @@ class Border:
 
     def add_layer(
         self,
-        image_path: str,
+        image: Image.Image | str,
         index: int = None,
     ):
         """
@@ -37,14 +37,15 @@ class Border:
 
         Parameters
         ----------
-        image_path: str
-            The path of the image to set the layer to.
+        image: Image.Image | str
+            The Image, or the path to the image, to set the layer to.
 
         index: int, optional
             The index to add the layer before. Adds to the top if not given.
         """
 
-        image = Image.open(image_path)
+        if type(image) == "str":
+            image = Image.open(image)
 
         if index == None:
             self.layers.append(image)
