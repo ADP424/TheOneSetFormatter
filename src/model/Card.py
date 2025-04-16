@@ -58,6 +58,18 @@ class Card:
         else:
             self.layers.insert(index, Layer(image, position))
 
+    def remove_layer(self, index: int):
+        """
+        Remove the layer at the given index.
+
+        Parameters
+        ----------
+        index: int
+            The index of the layer to remove.
+        """
+
+        self.layers.pop(index)
+
     def merge_layers(self) -> Image.Image:
         """
         Merge all layers into one image.

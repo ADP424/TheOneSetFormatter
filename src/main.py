@@ -1,4 +1,3 @@
-import copy
 import csv
 from datetime import datetime
 from PIL import Image
@@ -119,9 +118,9 @@ def main():
             if base_tf_card is None:
                 continue
 
-            tf_card = copy.deepcopy(card_overlay)
-            tf_card.add_layer(base_tf_card, 0)
-            final_card = tf_card.merge_layers()
+            card_overlay.add_layer(base_tf_card, 0)
+            final_card = card_overlay.merge_layers()
+            card_overlay.remove_layer(0)
             final_card.save(f"cards/processed_cards/{tf_file_name}.png")
             print(f"""\tSuccessfully processed "{tf_card_name}".""")
 
