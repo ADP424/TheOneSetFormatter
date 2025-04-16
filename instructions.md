@@ -1,10 +1,10 @@
 ## Spreadsheet Setup
 
-1. Download "The One Set Cards Ranked - Ratings" as a `.csv`.<br>
+1. Download "The One Set Cards Ranked - Card Ratings" as a `.csv`.<br>
     1. Put it inside the `spreadsheets` folder.<br>
     2. Rename it to "cards.csv".
 
-2. Repeat this process for tokens ("tokens.csv") and lands ("lands.csv").
+2. Repeat this process for tokens ("tokens.csv") and transform backsides ("transform.csv").
 
 
 ## Card Setup

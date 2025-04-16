@@ -1,3 +1,4 @@
+import copy
 import csv
 from datetime import datetime
 from PIL import Image
@@ -6,11 +7,12 @@ from model.Card import Card
 
 # the names of the .csv files that hold all the card information
 CARDS = "spreadsheets/cards.csv"
-LANDS = "spreadsheets/lands.csv"
 TOKENS = "spreadsheets/tokens.csv"
+TRANSFORM_BACKSIDES = "spreadsheets/transform.csv"
 
 # which columns in the spreadsheet correspond to which attribute
 CARD_NAME = "Card Name"
+FRONT_CARD_NAME = "Front Card Name"
 CARD_DATE = "Date Created"
 CARD_RARITY = "Rarity"
 
@@ -39,14 +41,25 @@ NUMBER_WIDTHS = {
     '9': 25
 }
 
-def read_csv(filepath: str) -> list[dict[str, str]]:
-    cards = []
-    with open(filepath, 'r', encoding="utf8") as csv_file:
-        csv_reader = csv.reader(csv_file)
-        columns = next(csv_reader)
-        for row in csv_reader:
-            cards.append(dict(zip(columns, row)))
-    cards.sort(key=lambda card: datetime.strptime(card[CARD_DATE], "%m/%d/%Y"))
+def process_spreadsheets() -> dict[str, dict[str, str | dict[str, str]]]:
+    cards = {}
+    with open(CARDS, 'r', encoding="utf8") as cards_sheet:
+        cards_sheet_reader = csv.reader(cards_sheet)
+        columns = next(cards_sheet_reader)
+        for row in cards_sheet_reader:
+            values = dict(zip(columns, row))
+            if len(values[CARD_NAME]) > 0:
+                values["Transform Backsides"] = []
+                cards[values[CARD_NAME]] = values
+    
+    with open(TRANSFORM_BACKSIDES) as transform_sheet:
+        transform_sheet_reader = csv.reader(transform_sheet)
+        columns = next(transform_sheet_reader)
+        for row in transform_sheet_reader:
+            values = dict(zip(columns, row))
+            if len(values[CARD_NAME]) > 0:
+                cards[values[FRONT_CARD_NAME]]["Transform Backsides"].append(values)
+
     return cards
 
 def cardname_to_filename(cardname: str) -> str:
@@ -55,44 +68,68 @@ def cardname_to_filename(cardname: str) -> str:
         filename = filename.replace(bad_char, CHAR_TO_TITLE_CHAR[bad_char])
     return filename
 
+def open_card_file(file_name: str) -> Image.Image | None:
+    try:
+        if len(file_name) > 0:
+            base_card = Image.open(f"cards/unprocessed_cards/{file_name}.png")
+        else:
+            return None
+    except FileNotFoundError:
+        print(f"""Couldn't find "{file_name}".""")
+        return None
+    return base_card
+
 def main():
-    cards = read_csv(CARDS)
+    cards = process_spreadsheets()
+    card_name_list = list(cards.keys())
+    card_name_list.sort(key=lambda card_name: datetime.strptime(cards[card_name][CARD_DATE], "%m/%d/%Y"))
 
-    for num, card in enumerate(cards):
+    for num, card_name in enumerate(card_name_list):
 
-        card_name = cardname_to_filename(card[CARD_NAME])
-        try:
-            if len(card_name) > 0:
-                base_card = Image.open(f"cards/unprocessed_cards/{card_name}.png")
-            else:
-                continue
-        except FileNotFoundError:
-            print(f"""Couldn't find "{card[CARD_NAME]}".""")
+        card = cards[card_name]
+        file_name = cardname_to_filename(card_name)
+
+        base_card = open_card_file(file_name)
+        if base_card is None:
             continue
 
-        processed_card = Card()
-        processed_card.add_layer(base_card)
+        card_overlay = Card()
 
-        # TODO: Find way to determine if card has special poker border
-        processed_card.add_layer(Image.open("images/borders/black.png"))
+        # TODO: Decide a way to determine if card has special poker border
+        card_overlay.add_layer("images/borders/black.png")
 
-        processed_card.add_layer(Image.open("images/collection/set_name.png"))
+        card_overlay.add_layer("images/collection/set_name.png")
 
         year = datetime.strptime(card[CARD_DATE], "%m/%d/%Y").year
-        processed_card.add_layer(Image.open(f"images/years/{year}.png"))
+        card_overlay.add_layer(f"images/years/{year}.png")
 
         rarity = card[CARD_RARITY].lower()
-        processed_card.add_layer(Image.open(f"images/rarities/{rarity}.png"))
+        card_overlay.add_layer(f"images/rarities/{rarity}.png")
 
         number = str(num + 1).zfill(len(str(len(cards))))
         x_offset = 0
         for char in number:
-            processed_card.add_layer(f"images/numbers/{char}.png", position=(x_offset, 0))
+            card_overlay.add_layer(f"images/numbers/{char}.png", position=(x_offset, 0))
             x_offset += NUMBER_WIDTHS[char]
 
-        final_card = processed_card.merge_layers()
-        final_card.save(f"cards/processed_cards/{card_name}.png")
-        print(f"""Successfully processed "{card[CARD_NAME]}".""")
+        for backside in card["Transform Backsides"]:
+            tf_card_name = backside[CARD_NAME]
+            tf_file_name = cardname_to_filename(tf_card_name)
+            base_tf_card = open_card_file(tf_file_name)
+            if base_tf_card is None:
+                continue
+
+            tf_card = copy.deepcopy(card_overlay)
+            tf_card.add_layer(base_tf_card, 0)
+            final_card = tf_card.merge_layers()
+            final_card.save(f"cards/processed_cards/{tf_file_name}.png")
+            print(f"""\tSuccessfully processed "{tf_card_name}".""")
+
+        card_overlay.add_layer(base_card, 0)
+
+        final_card = card_overlay.merge_layers()
+        final_card.save(f"cards/processed_cards/{file_name}.png")
+        print(f"""Successfully processed "{card_name}".""")
 
 if __name__ == "__main__":
     main()
