@@ -77,13 +77,16 @@ class Card:
         Returns
         -------
         Image
-            The merged image.
+            The merged image. Returns None if the Card has no layers.
         """
 
-        base_image = Image.open("images/base.png")
+        if len(self.layers) == 0:
+            return None
+
+        base_image = self.layers[0].image
         composite_image = base_image.copy()
 
-        for layer in self.layers:
+        for layer in self.layers[1:]:
             composite_image.paste(layer.image, layer.position, mask=layer.image)
 
         return composite_image

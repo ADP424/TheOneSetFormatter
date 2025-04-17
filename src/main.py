@@ -12,8 +12,11 @@ TRANSFORM_BACKSIDES = "spreadsheets/transform.csv"
 # which columns in the spreadsheet correspond to which attribute
 CARD_NAME = "Card Name"
 FRONT_CARD_NAME = "Front Card Name"
-CARD_DATE = "Date Created"
 CARD_RARITY = "Rarity"
+CARD_TYPES = "Type(s)"
+CARD_SUBTYPES = "Subtype(s)"
+CARD_DATE = "Date Created"
+
 
 CHAR_TO_TITLE_CHAR = {
     '<': '{BC}',
@@ -28,7 +31,7 @@ CHAR_TO_TITLE_CHAR = {
 }
 
 NUMBER_WIDTHS = {
-    '0': 25,
+    '0': 26,
     '1': 14,
     '2': 23,
     '3': 22,
@@ -61,21 +64,29 @@ def process_spreadsheets() -> dict[str, dict[str, str | dict[str, str]]]:
 
     return cards
 
-def cardname_to_filename(cardname: str) -> str:
-    filename = cardname
+def cardname_to_filename(card_name: str) -> str:
+    file_name = card_name
     for bad_char in CHAR_TO_TITLE_CHAR.keys():
-        filename = filename.replace(bad_char, CHAR_TO_TITLE_CHAR[bad_char])
-    return filename
+        file_name = file_name.replace(bad_char, CHAR_TO_TITLE_CHAR[bad_char])
+    return file_name
 
 def open_card_file(file_name: str) -> Image.Image | None:
     try:
+
         if len(file_name) > 0:
             base_card = Image.open(f"cards/unprocessed_cards/{file_name}.png")
         else:
             return None
+        
     except FileNotFoundError:
-        print(f"""Couldn't find "{file_name}".""")
-        return None
+
+        try:
+            file_name = file_name.replace("'", "’")
+            base_card = Image.open(f"cards/unprocessed_cards/{file_name}.png")
+        except FileNotFoundError:
+            print(f"""Couldn't find "{file_name}".""")
+            return None
+        
     return base_card
 
 def main():
@@ -92,24 +103,40 @@ def main():
         if base_card is None:
             continue
 
-        card_overlay = Card()
+        if "Battle" in card[CARD_TYPES]:
+            frame_type = "wide_horizontal"
+            card_width = 2814
+            card_height = 2010
+            width_mult = 1.34
+            orientation = "horizontal"
+        else:
+            frame_type = "standard"
+            card_width = 1500
+            card_height = 2100
+            width_mult = 1
+            orientation = "vertical"
+
+        card_overlay = Card(card_width, card_height)
 
         # TODO: Decide a way to determine if card has special poker border
-        card_overlay.add_layer("images/borders/black.png")
+        card_overlay.add_layer(f"images/{frame_type}/borders/black.png")
 
-        card_overlay.add_layer("images/collection/set_name.png")
+        card_overlay.add_layer(f"images/{frame_type}/collection/set_name.png")
 
         year = datetime.strptime(card[CARD_DATE], "%m/%d/%Y").year
-        card_overlay.add_layer(f"images/years/{year}.png")
+        card_overlay.add_layer(f"images/{frame_type}/years/{year}.png")
 
         rarity = card[CARD_RARITY].lower()
-        card_overlay.add_layer(f"images/rarities/{rarity}.png")
+        card_overlay.add_layer(f"images/{frame_type}/rarities/{rarity}.png")
 
         number = str(num + 1).zfill(len(str(len(cards))))
-        x_offset = 0
+        offset = 0
         for char in number:
-            card_overlay.add_layer(f"images/numbers/{char}.png", position=(x_offset, 0))
-            x_offset += NUMBER_WIDTHS[char]
+            if orientation == "vertical":
+                card_overlay.add_layer(f"images/{frame_type}/numbers/{char}.png", position=(int(offset * width_mult), 0))
+            else:
+                card_overlay.add_layer(f"images/{frame_type}/numbers/{char}.png", position=(0, int(offset * width_mult)))
+            offset += NUMBER_WIDTHS[char]
 
         for backside in card["Transform Backsides"]:
             tf_card_name = backside[CARD_NAME]
