@@ -1,6 +1,7 @@
 spreadsheets/*
 cards/processed_cards/*
 cards/unprocessed_cards/*
+log.txt
 
 # python
 __pycache__/

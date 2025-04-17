@@ -2,6 +2,7 @@ import csv
 from datetime import datetime
 from PIL import Image
 
+from log import log, reset_log
 from model.Card import Card
 
 # the names of the .csv files that hold all the card information
@@ -19,33 +20,34 @@ CARD_DATE = "Date Created"
 
 
 CHAR_TO_TITLE_CHAR = {
-    '<': '{BC}',
-    '>': '{FC}',
-    ':': '{C}',
-    '"': '{QT}',
-    '/': '{FS}',
-    '\\': '{BS}',
-    '|': '{B}',
-    '?': '{QS}',
-    '*': '{A}'
+    "<": "{BC}",
+    ">": "{FC}",
+    ":": "{C}",
+    '"': "{QT}",
+    "/": "{FS}",
+    "\\": "{BS}",
+    "|": "{B}",
+    "?": "{QS}",
+    "*": "{A}",
 }
 
 NUMBER_WIDTHS = {
-    '0': 26,
-    '1': 14,
-    '2': 23,
-    '3': 22,
-    '4': 25,
-    '5': 22,
-    '6': 23,
-    '7': 21,
-    '8': 23,
-    '9': 25
+    "0": 26,
+    "1": 14,
+    "2": 23,
+    "3": 22,
+    "4": 25,
+    "5": 22,
+    "6": 23,
+    "7": 21,
+    "8": 23,
+    "9": 25,
 }
+
 
 def process_spreadsheets() -> dict[str, dict[str, str | dict[str, str]]]:
     cards = {}
-    with open(CARDS, 'r', encoding="utf8") as cards_sheet:
+    with open(CARDS, "r", encoding="utf8") as cards_sheet:
         cards_sheet_reader = csv.reader(cards_sheet)
         columns = next(cards_sheet_reader)
         for row in cards_sheet_reader:
@@ -53,7 +55,7 @@ def process_spreadsheets() -> dict[str, dict[str, str | dict[str, str]]]:
             if len(values[CARD_NAME]) > 0:
                 values["Transform Backsides"] = []
                 cards[values[CARD_NAME]] = values
-    
+
     with open(TRANSFORM_BACKSIDES) as transform_sheet:
         transform_sheet_reader = csv.reader(transform_sheet)
         columns = next(transform_sheet_reader)
@@ -64,11 +66,13 @@ def process_spreadsheets() -> dict[str, dict[str, str | dict[str, str]]]:
 
     return cards
 
+
 def cardname_to_filename(card_name: str) -> str:
     file_name = card_name
     for bad_char in CHAR_TO_TITLE_CHAR.keys():
         file_name = file_name.replace(bad_char, CHAR_TO_TITLE_CHAR[bad_char])
     return file_name
+
 
 def open_card_file(file_name: str) -> Image.Image | None:
     try:
@@ -77,22 +81,25 @@ def open_card_file(file_name: str) -> Image.Image | None:
             base_card = Image.open(f"cards/unprocessed_cards/{file_name}.png")
         else:
             return None
-        
+
     except FileNotFoundError:
 
         try:
-            file_name = file_name.replace("'", "’")
-            base_card = Image.open(f"cards/unprocessed_cards/{file_name}.png")
+            new_file_name = file_name.replace("'", "’")
+            base_card = Image.open(f"cards/unprocessed_cards/{new_file_name}.png")
         except FileNotFoundError:
-            print(f"""Couldn't find "{file_name}".""")
+            log(f"""Couldn't find "{file_name}".""")
             return None
-        
+
     return base_card
+
 
 def main():
     cards = process_spreadsheets()
     card_name_list = list(cards.keys())
-    card_name_list.sort(key=lambda card_name: datetime.strptime(cards[card_name][CARD_DATE], "%m/%d/%Y"))
+    card_name_list.sort(
+        key=lambda card_name: datetime.strptime(cards[card_name][CARD_DATE], "%m/%d/%Y")
+    )
 
     for num, card_name in enumerate(card_name_list):
 
@@ -133,9 +140,15 @@ def main():
         offset = 0
         for char in number:
             if orientation == "vertical":
-                card_overlay.add_layer(f"images/{frame_type}/numbers/{char}.png", position=(int(offset * width_mult), 0))
+                card_overlay.add_layer(
+                    f"images/{frame_type}/numbers/{char}.png",
+                    position=(int(offset * width_mult), 0),
+                )
             else:
-                card_overlay.add_layer(f"images/{frame_type}/numbers/{char}.png", position=(0, int(offset * width_mult)))
+                card_overlay.add_layer(
+                    f"images/{frame_type}/numbers/{char}.png",
+                    position=(0, int(offset * width_mult)),
+                )
             offset += NUMBER_WIDTHS[char]
 
         for backside in card["Transform Backsides"]:
@@ -149,13 +162,14 @@ def main():
             final_card = card_overlay.merge_layers()
             card_overlay.remove_layer(0)
             final_card.save(f"cards/processed_cards/{tf_file_name}.png")
-            print(f"""\tSuccessfully processed "{tf_card_name}".""")
+            log(f"""\tSuccessfully processed "{tf_card_name}".""")
 
         card_overlay.add_layer(base_card, 0)
 
         final_card = card_overlay.merge_layers()
         final_card.save(f"cards/processed_cards/{file_name}.png")
-        print(f"""Successfully processed "{card_name}".""")
+        log(f"""Successfully processed "{card_name}".""")
+
 
 if __name__ == "__main__":
     main()

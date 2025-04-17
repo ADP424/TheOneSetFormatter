@@ -23,7 +23,7 @@ class Card:
         self,
         base_width: int = 1500,
         base_height: int = 2100,
-        layers: list[Layer] = None
+        layers: list[Layer] = None,
     ):
         self.base_width = base_width
         self.base_height = base_height
@@ -33,7 +33,7 @@ class Card:
         self,
         image: Image.Image | str,
         index: int = None,
-        position: tuple[int, int] = (0, 0)
+        position: tuple[int, int] = (0, 0),
     ):
         """
         Add a layer with the image at the given path before the given index.
