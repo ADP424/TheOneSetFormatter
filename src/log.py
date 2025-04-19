@@ -5,6 +5,6 @@ def reset_log():
 
 def log(message: str, do_print=True):
     with open("log.txt", "a", encoding="utf8") as log_file:
-        log_file.write(message)
+        log_file.write(f"{message}\n")
     if do_print:
         print(message)

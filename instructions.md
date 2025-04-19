@@ -23,6 +23,8 @@
 1. `pip install -r requirements.txt`
 
 2. Run `python main.py` from the root directory.
+    1. Add `-nc` to skip processing the regular cards.
+    2. Add `-nt` to skip processing the tokens.
 
 3. All the cards should appear in `cards/processed_cards`.
     1. If you think a card should have been processed but wasn't, check `log.txt` for the filename it was looking for and make sure all the characters match.

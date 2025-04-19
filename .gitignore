@@ -1,7 +1,9 @@
 spreadsheets/*
 cards/processed_cards/*
 cards/unprocessed_cards/*
+
 log.txt
+report.txt
 
 # python
 __pycache__/
