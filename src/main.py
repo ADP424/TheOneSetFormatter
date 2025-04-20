@@ -8,13 +8,15 @@ from log import log, reset_log
 from model.Card import Card
 
 # the names of the .csv files that hold all the card information
-CARDS = "spreadsheets/cards.csv"
-TOKENS = "spreadsheets/tokens.csv"
-TRANSFORM_BACKSIDES = "spreadsheets/transform.csv"
+CARDS = "spreadsheets/The One Set Cards Ranked - Card Ratings.csv"
+TOKENS = "spreadsheets/The One Set Cards Ranked - Tokens.csv"
+TRANSFORM_BACKSIDES = "spreadsheets/The One Set Cards Ranked - Transform Backsides.csv"
+BASIC_LANDS = "spreadsheets/The One Set Cards Ranked - Basic Lands.csv"
 
 # which columns in the spreadsheet correspond to which attribute
 CARD_NAME = "Card Name"
 FRONT_CARD_NAME = "Front Card Name"
+DESCRIPTOR = "Descriptor"
 CARD_RARITY = "Rarity"
 CARD_COLOR = "Color Identity"
 CARD_TYPES = "Type(s)"
@@ -85,9 +87,12 @@ def get_token_full_name(token: dict[str, str]) -> str:
     return f"{token_color}{token_supertypes} {token[CARD_NAME]} {token_types}"
 
 
-def process_spreadsheets() -> (
-    tuple[dict[str, dict[str, str | dict[str, str]]], dict[str, dict[str, str]]]
-):
+def process_spreadsheets() -> tuple[
+    dict[str, dict[str, str | dict[str, str]]],
+    dict[str, dict[str, str]],
+    dict[str, dict[str, str]],
+    dict[str, dict[str, str | dict[str, str]]],
+]:
     cards = {}
     with open(CARDS, "r", encoding="utf8") as cards_sheet:
         cards_sheet_reader = csv.reader(cards_sheet)
@@ -118,7 +123,18 @@ def process_spreadsheets() -> (
                     values[CARD_NAME] = full_token_name
                     tokens[full_token_name] = values
 
-    return cards, tokens
+    basic_lands = {}
+    with open(BASIC_LANDS, "r", encoding="utf8") as basic_lands_sheet:
+        basic_lands_sheet_reader = csv.reader(basic_lands_sheet)
+        columns = next(basic_lands_sheet_reader)
+        for row in basic_lands_sheet_reader:
+            values = dict(zip(columns, row))
+            if len(values[CARD_NAME]) > 0:
+                full_basic_land_name = f"{values[CARD_NAME]} - {values[DESCRIPTOR]}"
+                values[CARD_NAME] = full_basic_land_name
+                basic_lands[full_basic_land_name] = values
+
+    return cards, tokens, basic_lands
 
 
 def cardname_to_filename(card_name: str) -> str:
@@ -200,7 +216,7 @@ def process_card(
 
     card_overlay.add_layer(f"images/{frame_type}/rarities/{rarity}.png")
 
-    number = str(card_num + 1).zfill(len(str(num_cards)))
+    number = str(card_num).zfill(len(str(num_cards)))
     offset = 0
     for char in number:
         if orientation == "vertical":
@@ -227,7 +243,6 @@ def process_token(token: dict[str, str], token_num: int, num_tokens: int):
 
     base_token = open_card_file(file_name)
     if base_token is None:
-
         return
 
     token_overlay = Card()
@@ -241,7 +256,7 @@ def process_token(token: dict[str, str], token_num: int, num_tokens: int):
 
     token_overlay.add_layer("images/standard/rarities/token.png")
 
-    number = str(token_num + 1).zfill(len(str(num_tokens)))
+    number = str(token_num).zfill(len(str(num_tokens)))
     offset = 0
     for char in number:
         token_overlay.add_layer(
@@ -257,8 +272,42 @@ def process_token(token: dict[str, str], token_num: int, num_tokens: int):
     log(f"""Successfully processed "{file_name}".""")
 
 
+def process_basic_land(basic_land: dict[str, str], basic_land_num: int, num_cards: int):
+    file_name = cardname_to_filename(basic_land[CARD_NAME])
+
+    base_basic_land = open_card_file(file_name)
+    if base_basic_land is None:
+        return
+
+    basic_land_overlay = Card()
+
+    basic_land_overlay.add_layer("images/standard/borders/black.png")
+
+    basic_land_overlay.add_layer("images/standard/collection/set_name.png")
+
+    year = datetime.strptime(basic_land[CARD_DATE], "%m/%d/%Y").year
+    basic_land_overlay.add_layer(f"images/standard/years/{year}.png")
+
+    basic_land_overlay.add_layer("images/standard/rarities/token.png")
+
+    number = str(basic_land_num).zfill(len(str(num_cards)))
+    offset = 0
+    for char in number:
+        basic_land_overlay.add_layer(
+            f"images/standard/numbers/{char}.png",
+            position=(int(offset), 0),
+        )
+        offset += NUMBER_WIDTHS[char]
+
+    basic_land_overlay.add_layer(base_basic_land, 0)
+
+    final_basic_land = basic_land_overlay.merge_layers()
+    final_basic_land.save(f"cards/processed_cards/{file_name}.png")
+    log(f"""Successfully processed "{file_name}".""")
+
+
 def process_cards(
-    cards: dict[str, dict[str, str | dict[str, str]]], only_updated: bool = False
+    cards: dict[str, dict[str, str | dict[str, str]]], num_cards: int, only_updated: bool = False,
 ):
     log(f"\n----- PROCESSING{" UPDATED" if only_updated else ""} CARDS -----\n")
 
@@ -277,10 +326,10 @@ def process_cards(
 
         process_card(card, num, len(cards))
         for backside in card["Transform Backsides"]:
-            process_card(backside, num, len(cards), card, indent=True)
+            process_card(backside, num + 1, num_cards, card, indent=True)
 
 
-def process_tokens(tokens: dict[str, dict[str, str]]):
+def process_tokens(tokens: dict[str, dict[str, str]], num_tokens: int):
     log("\n----- PROCESSING TOKENS -----\n")
 
     token_name_list = list(tokens.keys())
@@ -293,11 +342,27 @@ def process_tokens(tokens: dict[str, dict[str, str]]):
 
     for num, token_name in enumerate(token_name_list):
         token = tokens[token_name]
-        process_token(token, num, len(tokens))
+        process_token(token, num + 1, num_tokens)
+
+
+def process_basic_lands(basic_lands: dict[str, dict[str, str]], num_cards: int, num_basic_lands: int):
+    log("\n----- PROCESSING BASIC LANDS -----\n")
+
+    basic_land_name_list = list(basic_lands.keys())
+    basic_land_name_list.sort(
+        key=lambda basic_land_name: (
+            basic_lands[basic_land_name][CARD_NAME],
+            datetime.strptime(basic_lands[basic_land_name][CARD_DATE], "%m/%d/%Y")
+        )
+    )
+
+    for num, basic_land_name in enumerate(basic_land_name_list):
+        basic_land = basic_lands[basic_land_name]
+        process_basic_land(basic_land, num_cards - num_basic_lands + num + 1, num_cards)
 
 
 def find_files_not_in_spreadsheets(
-    cards: dict[str, dict[str, str | dict[str, str]]], tokens: dict[str, dict[str, str]]
+    cards: dict[str, dict[str, str | dict[str, str]]], tokens: dict[str, dict[str, str]], basic_lands: dict[str, dict[str, str]]
 ):
     """
     Finds the names of any files in cards/unprocessed_cards that aren't in the spreadsheet.
@@ -321,6 +386,9 @@ def find_files_not_in_spreadsheets(
     for token_name in tokens.keys():
         card_names.append(cardname_to_filename(token_name))
 
+    for basic_land_name in basic_lands.keys():
+        card_names.append(cardname_to_filename(basic_land_name))
+
     extra1 = set(unprocessed_cards) - set(card_names)
 
     processed_cards = [
@@ -339,23 +407,32 @@ def find_files_not_in_spreadsheets(
         for name in extra2:
             report_file.write(f"{name}\n")
 
+    log("\n----- PROCESSED REPORT -----\n")
+
 
 def main(
     do_cards: bool = True,
     do_tokens: bool = True,
+    do_basic_lands: bool = True,
     only_updated: bool = False,
     find_files: bool = False,
 ):
     reset_log()
-    cards, tokens = process_spreadsheets()
+    cards, tokens, basic_lands = process_spreadsheets()
+
+    num_mainline_cards = len(cards) + len(basic_lands)
+    num_tokens = len(tokens)
+    num_basic_lands = len(basic_lands)
 
     if do_cards:
-        process_cards(cards, only_updated)
+        process_cards(cards, num_mainline_cards, only_updated)
     if do_tokens:
-        process_tokens(tokens)
+        process_tokens(tokens, num_tokens)
+    if do_basic_lands:
+        process_basic_lands(basic_lands, num_mainline_cards, num_basic_lands)
 
     if find_files:
-        find_files_not_in_spreadsheets(cards, tokens)
+        find_files_not_in_spreadsheets(cards, tokens, basic_lands)
 
 
 if __name__ == "__main__":
@@ -376,6 +453,13 @@ if __name__ == "__main__":
         dest="tokens",
     )
     parser.add_argument(
+        "-nbl",
+        "--no-basic-lands",
+        action="store_false",
+        help="Skip processing the basic lands.",
+        dest="basic_lands",
+    )
+    parser.add_argument(
         "-ou",
         "--only-updated",
         action="store_true",
@@ -391,4 +475,4 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    main(args.cards, args.tokens, args.only_updated, args.find_files)
+    main(args.cards, args.tokens, args.basic_lands, args.only_updated, args.find_files)
