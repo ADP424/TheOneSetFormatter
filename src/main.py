@@ -12,6 +12,7 @@ CARDS = "spreadsheets/The One Set Cards Ranked - Card Ratings.csv"
 TOKENS = "spreadsheets/The One Set Cards Ranked - Tokens.csv"
 TRANSFORM_BACKSIDES = "spreadsheets/The One Set Cards Ranked - Transform Backsides.csv"
 BASIC_LANDS = "spreadsheets/The One Set Cards Ranked - Basic Lands.csv"
+ALT_ARTS = "spreadsheets/The One Set Cards Ranked - Alt Arts.csv"
 
 # which columns in the spreadsheet correspond to which attribute
 CARD_NAME = "Card Name"
@@ -82,9 +83,13 @@ def get_token_full_name(token: dict[str, str]) -> str:
         log(f"""Token "{token[CARD_NAME]}" has an invalid color identity.""")
         return None
 
+    token_descriptor = token[DESCRIPTOR].strip()
+    if len(token_descriptor) > 0:
+        token_descriptor = f" - {token_descriptor}"
+
     token_supertypes = token[CARD_SUPERTYPES]
     token_types = token[CARD_TYPES]
-    return f"{token_color}{token_supertypes} {token[CARD_NAME]} {token_types}"
+    return f"{token_color}{token_supertypes} {token[CARD_NAME]} {token_types}{token_descriptor}"
 
 
 def process_spreadsheets() -> tuple[
@@ -134,7 +139,18 @@ def process_spreadsheets() -> tuple[
                 values[CARD_NAME] = full_basic_land_name
                 basic_lands[full_basic_land_name] = values
 
-    return cards, tokens, basic_lands
+    alt_arts = {}
+    with open(ALT_ARTS, "r", encoding="utf8") as alt_arts_sheet:
+        alt_arts_sheet_reader = csv.reader(alt_arts_sheet)
+        columns = next(alt_arts_sheet_reader)
+        for row in alt_arts_sheet_reader:
+            values = dict(zip(columns, row))
+            if len(values[CARD_NAME]) > 0:
+                full_alt_art_name = f"{values[CARD_NAME]} - {values[DESCRIPTOR]}"
+                values[CARD_NAME] = full_alt_art_name
+                alt_arts[full_alt_art_name] = values
+
+    return cards, tokens, basic_lands, alt_arts
 
 
 def cardname_to_filename(card_name: str) -> str:
@@ -288,7 +304,7 @@ def process_basic_land(basic_land: dict[str, str], basic_land_num: int, num_card
     year = datetime.strptime(basic_land[CARD_DATE], "%m/%d/%Y").year
     basic_land_overlay.add_layer(f"images/standard/years/{year}.png")
 
-    basic_land_overlay.add_layer("images/standard/rarities/token.png")
+    basic_land_overlay.add_layer("images/standard/rarities/land.png")
 
     number = str(basic_land_num).zfill(len(str(num_cards)))
     offset = 0
@@ -306,8 +322,48 @@ def process_basic_land(basic_land: dict[str, str], basic_land_num: int, num_card
     log(f"""Successfully processed "{file_name}".""")
 
 
+def process_alt_art(alt_art: dict[str, str], alt_art_num: int, num_alt_arts: int):
+    file_name = cardname_to_filename(alt_art[CARD_NAME])
+
+    base_alt_art = open_card_file(file_name)
+    if base_alt_art is None:
+        return
+
+    alt_art_overlay = Card()
+
+    alt_art_overlay.add_layer("images/standard/borders/black.png")
+
+    alt_art_overlay.add_layer("images/standard/collection/set_name.png")
+
+    year = datetime.strptime(alt_art[CARD_DATE], "%m/%d/%Y").year
+    alt_art_overlay.add_layer(f"images/standard/years/{year}.png")
+
+    rarity = alt_art[CARD_RARITY].lower()
+    alt_art_overlay.add_layer(f"images/standard/rarities/{rarity}.png")
+
+    number = str(alt_art_num).zfill(len(str(num_alt_arts)))
+    offset = 0
+    for char in number:
+        alt_art_overlay.add_layer(
+            f"images/standard/numbers/{char}.png",
+            position=(int(offset), 0),
+        )
+        offset += NUMBER_WIDTHS[char]
+
+    if "Foil" in file_name:
+        alt_art_overlay.add_layer("images/standard/overlays/foil.png")
+
+    alt_art_overlay.add_layer(base_alt_art, 0)
+
+    final_alt_art = alt_art_overlay.merge_layers()
+    final_alt_art.save(f"cards/processed_cards/{file_name}.png")
+    log(f"""Successfully processed "{file_name}".""")
+
+
 def process_cards(
-    cards: dict[str, dict[str, str | dict[str, str]]], num_cards: int, only_updated: bool = False,
+    cards: dict[str, dict[str, str | dict[str, str]]],
+    num_cards: int,
+    only_updated: bool = False,
 ):
     log(f"\n----- PROCESSING{" UPDATED" if only_updated else ""} CARDS -----\n")
 
@@ -345,14 +401,16 @@ def process_tokens(tokens: dict[str, dict[str, str]], num_tokens: int):
         process_token(token, num + 1, num_tokens)
 
 
-def process_basic_lands(basic_lands: dict[str, dict[str, str]], num_cards: int, num_basic_lands: int):
+def process_basic_lands(
+    basic_lands: dict[str, dict[str, str]], num_cards: int, num_basic_lands: int
+):
     log("\n----- PROCESSING BASIC LANDS -----\n")
 
     basic_land_name_list = list(basic_lands.keys())
     basic_land_name_list.sort(
         key=lambda basic_land_name: (
             basic_lands[basic_land_name][CARD_NAME],
-            datetime.strptime(basic_lands[basic_land_name][CARD_DATE], "%m/%d/%Y")
+            datetime.strptime(basic_lands[basic_land_name][CARD_DATE], "%m/%d/%Y"),
         )
     )
 
@@ -361,8 +419,27 @@ def process_basic_lands(basic_lands: dict[str, dict[str, str]], num_cards: int, 
         process_basic_land(basic_land, num_cards - num_basic_lands + num + 1, num_cards)
 
 
+def process_alt_arts(alt_arts: dict[str, dict[str, str]], num_alt_arts: int):
+    log("\n----- PROCESSING ALT ARTS -----\n")
+
+    alt_arts_name_list = list(alt_arts.keys())
+    alt_arts_name_list.sort(
+        key=lambda alt_art_name: (
+            datetime.strptime(alt_arts[alt_art_name][CARD_DATE], "%m/%d/%Y"),
+            alt_arts[alt_art_name][CARD_NAME]
+        )
+    )
+
+    for num, alt_art_name in enumerate(alt_arts_name_list):
+        alt_art = alt_arts[alt_art_name]
+        process_alt_art(alt_art, num + 1, num_alt_arts)
+
+
 def find_files_not_in_spreadsheets(
-    cards: dict[str, dict[str, str | dict[str, str]]], tokens: dict[str, dict[str, str]], basic_lands: dict[str, dict[str, str]]
+    cards: dict[str, dict[str, str | dict[str, str]]],
+    tokens: dict[str, dict[str, str]],
+    basic_lands: dict[str, dict[str, str]],
+    alt_arts: dict[str, dict[str, str | dict[str, str]]],
 ):
     """
     Finds the names of any files in cards/unprocessed_cards that aren't in the spreadsheet.
@@ -389,6 +466,9 @@ def find_files_not_in_spreadsheets(
     for basic_land_name in basic_lands.keys():
         card_names.append(cardname_to_filename(basic_land_name))
 
+    for alt_art_name in alt_arts.keys():
+        card_names.append(cardname_to_filename(alt_art_name))
+
     extra1 = set(unprocessed_cards) - set(card_names)
 
     processed_cards = [
@@ -414,15 +494,17 @@ def main(
     do_cards: bool = True,
     do_tokens: bool = True,
     do_basic_lands: bool = True,
+    do_alt_arts: bool = True,
     only_updated: bool = False,
     find_files: bool = False,
 ):
     reset_log()
-    cards, tokens, basic_lands = process_spreadsheets()
+    cards, tokens, basic_lands, alt_arts = process_spreadsheets()
 
     num_mainline_cards = len(cards) + len(basic_lands)
     num_tokens = len(tokens)
     num_basic_lands = len(basic_lands)
+    num_alt_arts = len(alt_arts)
 
     if do_cards:
         process_cards(cards, num_mainline_cards, only_updated)
@@ -430,9 +512,11 @@ def main(
         process_tokens(tokens, num_tokens)
     if do_basic_lands:
         process_basic_lands(basic_lands, num_mainline_cards, num_basic_lands)
+    if do_alt_arts:
+        process_alt_arts(alt_arts, num_alt_arts)
 
     if find_files:
-        find_files_not_in_spreadsheets(cards, tokens, basic_lands)
+        find_files_not_in_spreadsheets(cards, tokens, basic_lands, alt_arts)
 
 
 if __name__ == "__main__":
@@ -460,6 +544,13 @@ if __name__ == "__main__":
         dest="basic_lands",
     )
     parser.add_argument(
+        "-naa",
+        "--no-alt-arts",
+        action="store_false",
+        help="Skip processing the alternate arts of cards.",
+        dest="alt_arts",
+    )
+    parser.add_argument(
         "-ou",
         "--only-updated",
         action="store_true",
@@ -475,4 +566,11 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    main(args.cards, args.tokens, args.basic_lands, args.only_updated, args.find_files)
+    main(
+        args.cards,
+        args.tokens,
+        args.basic_lands,
+        args.alt_arts,
+        args.only_updated,
+        args.find_files,
+    )
