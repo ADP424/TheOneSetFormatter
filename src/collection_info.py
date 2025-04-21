@@ -27,8 +27,7 @@ def process_card(
     card: dict[str, str | dict[str, str]],
     card_num: int,
     num_cards: int,
-    parent_card: dict[str, str | dict[str, str]] = None,
-    indent: bool = False,
+    parent_card: dict[str, str | dict[str, str]] = None
 ):
     file_name = cardname_to_filename(card[CARD_NAME])
 
@@ -94,7 +93,7 @@ def process_card(
 
     final_card = card_overlay.merge_layers()
     final_card.save(f"cards/processed_cards/{file_name}.png")
-    log(f"""{"\t" if indent else ""}Successfully processed "{card[CARD_NAME]}".""")
+    log(f"""{"\t" if parent_card is not None else ""}Successfully processed "{card[CARD_NAME]}".""")
 
 
 def process_token(token: dict[str, str], token_num: int, num_tokens: int):
@@ -165,14 +164,39 @@ def process_basic_land(basic_land: dict[str, str], basic_land_num: int, num_card
     log(f"""Successfully processed "{file_name}".""")
 
 
-def process_alt_art(alt_art: dict[str, str], alt_art_num: int, num_alt_arts: int):
+def process_alt_art(alt_art: dict[str, str], alt_art_num: int, num_alt_arts: int, parent_alt_art: dict[str, str] = None):
     file_name = cardname_to_filename(alt_art[CARD_NAME])
 
     base_alt_art = open_card_file(file_name)
     if base_alt_art is None:
         return
+    
+    if "Battle" in alt_art[CARD_TYPES]:
+        frame_type = "wide_horizontal"
+        card_width = 2814
+        card_height = 2010
+        width_mult = BATTLE_CARD_MULT
+        orientation = "horizontal"
+    else:
+        frame_type = "standard"
+        card_width = 1500
+        card_height = 2100
+        width_mult = 1
+        orientation = "vertical"
 
-    alt_art_overlay = Card()
+    alt_art_overlay = Card(card_width, card_height)
+
+    if parent_alt_art is None:
+        archetype = alt_art[ARCHETYPE]
+    else:
+        archetype = parent_alt_art[ARCHETYPE]
+
+    if "Poker" in archetype:
+        color = alt_art[CARD_COLOR].strip()
+        border = POKER_BORDERS.get(color, "black")
+        alt_art_overlay.add_layer(f"images/{frame_type}/borders/{border}.png")
+    else:
+        alt_art_overlay.add_layer(f"images/{frame_type}/borders/black.png")
 
     alt_art_overlay.add_layer("images/standard/borders/black.png")
 
@@ -187,10 +211,16 @@ def process_alt_art(alt_art: dict[str, str], alt_art_num: int, num_alt_arts: int
     number = str(alt_art_num).zfill(len(str(num_alt_arts)))
     offset = 0
     for char in number:
-        alt_art_overlay.add_layer(
-            f"images/standard/numbers/{char}.png",
-            position=(int(offset), 0),
-        )
+        if orientation == "vertical":
+            alt_art_overlay.add_layer(
+                f"images/standard/numbers/{char}.png",
+                position=(int(offset) * width_mult, 0),
+            )
+        else:
+            alt_art_overlay.add_layer(
+                f"images/standard/numbers/{char}.png",
+                position=(0, int(offset * width_mult)),
+            )
         offset += NUMBER_WIDTHS[char]
 
     if "Foil" in file_name:
@@ -200,7 +230,7 @@ def process_alt_art(alt_art: dict[str, str], alt_art_num: int, num_alt_arts: int
 
     final_alt_art = alt_art_overlay.merge_layers()
     final_alt_art.save(f"cards/processed_cards/{file_name}.png")
-    log(f"""Successfully processed "{file_name}".""")
+    log(f"""{"\t" if parent_alt_art is not None else ""}Successfully processed "{file_name}".""")
 
 
 def process_cards(
@@ -225,7 +255,7 @@ def process_cards(
 
         process_card(card, num + 1, len(cards))
         for backside in card["Transform Backsides"]:
-            process_card(backside, num + 1, num_cards, card, indent=True)
+            process_card(backside, num + 1, num_cards, card)
 
 
 def process_tokens(tokens: dict[str, dict[str, str]], num_tokens: int):
@@ -277,6 +307,9 @@ def process_alt_arts(alt_arts: dict[str, dict[str, str]], num_alt_arts: int):
         alt_art = alt_arts[alt_art_name]
         process_alt_art(alt_art, num + 1, num_alt_arts)
 
+        for backside in alt_art.get("Transform Backsides", []):
+            process_alt_art(backside, num + 1, num_alt_arts, alt_art)
+
 
 def find_files_not_in_spreadsheets(
     cards: dict[str, dict[str, str | dict[str, str]]],
@@ -311,6 +344,10 @@ def find_files_not_in_spreadsheets(
 
     for alt_art_name in alt_arts.keys():
         card_names.append(cardname_to_filename(alt_art_name))
+
+        alt_art = alt_arts[alt_art_name]
+        for backside in alt_art.get("Transform Backsides", []):
+            card_names.append(cardname_to_filename(backside[CARD_NAME]))
 
     extra1 = set(unprocessed_cards) - set(card_names)
 

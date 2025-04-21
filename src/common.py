@@ -11,6 +11,7 @@ from constants import (
     CHAR_TO_TITLE_CHAR,
     COLORS,
     DESCRIPTOR,
+    FRONT_CARD_DESCRIPTOR,
     FRONT_CARD_NAME,
     TOKENS,
     TRANSFORM_BACKSIDES,
@@ -93,6 +94,7 @@ def process_spreadsheets() -> tuple[
                 basic_lands[full_basic_land_name] = values
 
     alt_arts = {}
+    transform_backsides: list[dict[str, str]] = []
     with open(ALT_ARTS, "r", encoding="utf8") as alt_arts_sheet:
         alt_arts_sheet_reader = csv.reader(alt_arts_sheet)
         columns = next(alt_arts_sheet_reader)
@@ -101,7 +103,21 @@ def process_spreadsheets() -> tuple[
             if len(values[CARD_NAME]) > 0:
                 full_alt_art_name = f"{values[CARD_NAME]} - {values[DESCRIPTOR]}"
                 values[CARD_NAME] = full_alt_art_name
-                alt_arts[full_alt_art_name] = values
+
+                front_card_name = values[FRONT_CARD_NAME].strip()
+                if len(front_card_name) > 0:
+                    full_front_card_name = f"{front_card_name} - {values[FRONT_CARD_DESCRIPTOR]}"
+                    values[FRONT_CARD_NAME] = full_front_card_name
+                    transform_backsides.append(values)
+                else:
+                    alt_arts[full_alt_art_name] = values
+
+        for backside in transform_backsides:
+            front_side_name = backside[FRONT_CARD_NAME]
+            front_side = alt_arts[front_side_name]
+            if not front_side.get("Transform Backsides", False):
+                front_side["Transform Backsides"] = []
+            front_side["Transform Backsides"].append(backside)
 
     return cards, tokens, basic_lands, alt_arts
 

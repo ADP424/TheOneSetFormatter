@@ -195,6 +195,84 @@ def tile_basic_lands(basic_lands: dict[str, dict[str, str]]):
     finished_tiles.save(f"cards/card_tilings/basic_lands{tile_num}.png")
 
 
+def tile_alt_arts(alt_arts: dict[str, dict[str, str | dict[str, str]]]):
+    log(f"\n----- PROCESSING CARDS -----\n")
+
+    alt_art_name_list = list(alt_arts.keys())
+    alt_art_name_list.sort(
+        key=lambda alt_art_name: (
+            datetime.strptime(alt_arts[alt_art_name][CARD_DATE], "%m/%d/%Y"),
+            alt_arts[alt_art_name][CARD_NAME],
+        )
+    )
+
+    tile_num = 1
+    tiles = Card(CARD_WIDTH * TILING_WIDTH, CARD_HEIGHT * TILING_HEIGHT)
+
+    num = 0
+    for alt_art_name in alt_art_name_list:
+
+        alt_art = alt_arts[alt_art_name]
+        log(f"""Tiling "{alt_art_name}".""", do_print=False)
+
+        tile_row = num // TILING_WIDTH
+        tile_col = num % TILING_WIDTH
+
+        file_name = cardname_to_filename(alt_art_name)
+        alt_art_image = open_card_file(file_name, "processed")
+        if alt_art_image is None:
+            continue
+
+        if "Battle" in alt_art[CARD_TYPES]:
+            alt_art_image = alt_art_image.rotate(90, expand=True)
+            alt_art_image = alt_art_image.resize((CARD_WIDTH, CARD_HEIGHT), Image.Resampling.LANCZOS)
+
+        tiles.add_layer(
+            alt_art_image, position=(tile_col * CARD_WIDTH, tile_row * CARD_HEIGHT)
+        )
+
+        if tile_row == TILING_HEIGHT - 1 and tile_col == TILING_WIDTH - 1:
+            log(f"\nCreating Alt Art Tile Set {tile_num}.\n")
+            finished_tiles = tiles.merge_layers()
+            finished_tiles.save(f"cards/card_tilings/alt_arts{tile_num}.png")
+            tile_num += 1
+            tiles = Card(CARD_WIDTH * TILING_WIDTH, CARD_HEIGHT * TILING_HEIGHT)
+            num = 0
+        else:
+            num += 1
+
+        for backside in alt_art.get("Transform Backsides", []):
+
+            backside_name = backside[CARD_NAME]
+            log(f"""\tTiling "{backside_name}".""", do_print=False)
+
+            tile_row = num // TILING_WIDTH
+            tile_col = num % TILING_WIDTH
+
+            file_name = cardname_to_filename(backside_name)
+            backside_image = open_card_file(file_name, "processed")
+            if backside_image is None:
+                continue
+
+            tiles.add_layer(
+                backside_image, position=(tile_col * CARD_WIDTH, tile_row * CARD_HEIGHT)
+            )
+
+            if tile_row == TILING_HEIGHT - 1 and tile_col == TILING_WIDTH - 1:
+                log(f"\nCreating Alt Art Tile Set {tile_num}.\n")
+                finished_tiles = tiles.merge_layers()
+                finished_tiles.save(f"cards/card_tilings/alt_arts{tile_num}.png")
+                tile_num += 1
+                tiles = Card(CARD_WIDTH * TILING_WIDTH, CARD_HEIGHT * TILING_HEIGHT)
+                num = 0
+            else:
+                num += 1
+
+    log(f"\nCreating Alt Art Tile Set {tile_num} (Final Tileset).\n")
+    finished_tiles = tiles.merge_layers()
+    finished_tiles.save(f"cards/card_tilings/alt_arts{tile_num}.png")
+
+
 def main(
     do_cards: bool = True,
     do_tokens: bool = True,
@@ -214,6 +292,9 @@ def main(
 
     if do_basic_lands:
         tile_basic_lands(basic_lands)
+
+    if do_alt_arts:
+        tile_alt_arts(alt_arts)
 
 
 if __name__ == "__main__":

@@ -22,6 +22,7 @@ CARD_SUPERTYPES = "Supertype(s)"
 CARD_DATE = "Date Created"
 ARCHETYPE = "Archetype"
 UPDATED = "Updated"
+FRONT_CARD_DESCRIPTOR = "Front Card Descriptor"
 
 CHAR_TO_TITLE_CHAR = {
     "<": "{BC}",
