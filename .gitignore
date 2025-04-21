@@ -1,4 +1,5 @@
 spreadsheets/*
+cards/card_tilings/*
 cards/processed_cards/*
 cards/unprocessed_cards/*
 

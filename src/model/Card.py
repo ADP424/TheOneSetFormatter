@@ -83,10 +83,12 @@ class Card:
         if len(self.layers) == 0:
             return None
 
-        base_image = self.layers[0].image
+        base_image = Image.new(
+            "RGBA", (self.base_width, self.base_height), (0, 0, 0, 0)
+        )
         composite_image = base_image.copy()
 
-        for layer in self.layers[1:]:
+        for layer in self.layers:
             composite_image.paste(layer.image, layer.position, mask=layer.image)
 
         return composite_image

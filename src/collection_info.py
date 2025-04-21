@@ -1,183 +1,26 @@
-import csv
+"""
+Automatically adds collection info to cards based on our ranking spreadsheet.
+"""
+
 import argparse
 from datetime import datetime
 import os
-from PIL import Image
 
+from common import cardname_to_filename, open_card_file, process_spreadsheets
+from constants import (
+    ARCHETYPE,
+    BATTLE_CARD_MULT,
+    CARD_COLOR,
+    CARD_DATE,
+    CARD_NAME,
+    CARD_RARITY,
+    CARD_TYPES,
+    NUMBER_WIDTHS,
+    POKER_BORDERS,
+    UPDATED,
+)
 from log import log, reset_log
 from model.Card import Card
-
-# the names of the .csv files that hold all the card information
-CARDS = "spreadsheets/The One Set Cards Ranked - Card Ratings.csv"
-TOKENS = "spreadsheets/The One Set Cards Ranked - Tokens.csv"
-TRANSFORM_BACKSIDES = "spreadsheets/The One Set Cards Ranked - Transform Backsides.csv"
-BASIC_LANDS = "spreadsheets/The One Set Cards Ranked - Basic Lands.csv"
-ALT_ARTS = "spreadsheets/The One Set Cards Ranked - Alt Arts.csv"
-
-# which columns in the spreadsheet correspond to which attribute
-CARD_NAME = "Card Name"
-FRONT_CARD_NAME = "Front Card Name"
-DESCRIPTOR = "Descriptor"
-CARD_RARITY = "Rarity"
-CARD_COLOR = "Color Identity"
-CARD_TYPES = "Type(s)"
-CARD_SUBTYPES = "Subtype(s)"
-CARD_SUPERTYPES = "Supertype(s)"
-CARD_DATE = "Date Created"
-ARCHETYPE = "Archetype"
-UPDATED = "Updated"
-
-
-CHAR_TO_TITLE_CHAR = {
-    "<": "{BC}",
-    ">": "{FC}",
-    ":": "{C}",
-    '"': "{QT}",
-    "/": "{FS}",
-    "\\": "{BS}",
-    "|": "{B}",
-    "?": "{QS}",
-    "*": "{A}",
-}
-
-NUMBER_WIDTHS = {
-    "0": 26,
-    "1": 14,
-    "2": 23,
-    "3": 22,
-    "4": 25,
-    "5": 22,
-    "6": 23,
-    "7": 21,
-    "8": 23,
-    "9": 25,
-}
-
-COLORS = {"W": "White", "U": "Blue", "B": "Black", "R": "Red", "G": "Green"}
-
-POKER_BORDERS = {
-    "W": "fold",
-    "U": "echo",
-    "B": "necro",
-    "R": "joker",
-    "G": "wild",
-    "Colorless": "glass",
-}
-
-
-def get_token_full_name(token: dict[str, str]) -> str:
-    color = token[CARD_COLOR]
-    token_color = ""
-    if "Colorless" in color:
-        token_color = "Colorless "
-    else:
-        for char in color.strip():
-            try:
-                token_color += f"{COLORS[char]} "
-            except:
-                log(f"""Token "{token[CARD_NAME]}" has an invalid color identity.""")
-                token_color = ""
-                break
-
-    if len(token_color) == 0:
-        log(f"""Token "{token[CARD_NAME]}" has an invalid color identity.""")
-        return None
-
-    token_descriptor = token[DESCRIPTOR].strip()
-    if len(token_descriptor) > 0:
-        token_descriptor = f" - {token_descriptor}"
-
-    token_supertypes = token[CARD_SUPERTYPES]
-    token_types = token[CARD_TYPES]
-    return f"{token_color}{token_supertypes} {token[CARD_NAME]} {token_types}{token_descriptor}"
-
-
-def process_spreadsheets() -> tuple[
-    dict[str, dict[str, str | dict[str, str]]],
-    dict[str, dict[str, str]],
-    dict[str, dict[str, str]],
-    dict[str, dict[str, str | dict[str, str]]],
-]:
-    cards = {}
-    with open(CARDS, "r", encoding="utf8") as cards_sheet:
-        cards_sheet_reader = csv.reader(cards_sheet)
-        columns = next(cards_sheet_reader)
-        for row in cards_sheet_reader:
-            values = dict(zip(columns, row))
-            if len(values[CARD_NAME]) > 0:
-                values["Transform Backsides"] = []
-                cards[values[CARD_NAME]] = values
-
-    with open(TRANSFORM_BACKSIDES) as transform_sheet:
-        transform_sheet_reader = csv.reader(transform_sheet)
-        columns = next(transform_sheet_reader)
-        for row in transform_sheet_reader:
-            values = dict(zip(columns, row))
-            if len(values[CARD_NAME]) > 0:
-                cards[values[FRONT_CARD_NAME]]["Transform Backsides"].append(values)
-
-    tokens = {}
-    with open(TOKENS, "r", encoding="utf8") as tokens_sheet:
-        tokens_sheet_reader = csv.reader(tokens_sheet)
-        columns = next(tokens_sheet_reader)
-        for row in tokens_sheet_reader:
-            values = dict(zip(columns, row))
-            if len(values[CARD_NAME]) > 0:
-                full_token_name = get_token_full_name(values)
-                if full_token_name is not None:
-                    values[CARD_NAME] = full_token_name
-                    tokens[full_token_name] = values
-
-    basic_lands = {}
-    with open(BASIC_LANDS, "r", encoding="utf8") as basic_lands_sheet:
-        basic_lands_sheet_reader = csv.reader(basic_lands_sheet)
-        columns = next(basic_lands_sheet_reader)
-        for row in basic_lands_sheet_reader:
-            values = dict(zip(columns, row))
-            if len(values[CARD_NAME]) > 0:
-                full_basic_land_name = f"{values[CARD_NAME]} - {values[DESCRIPTOR]}"
-                values[CARD_NAME] = full_basic_land_name
-                basic_lands[full_basic_land_name] = values
-
-    alt_arts = {}
-    with open(ALT_ARTS, "r", encoding="utf8") as alt_arts_sheet:
-        alt_arts_sheet_reader = csv.reader(alt_arts_sheet)
-        columns = next(alt_arts_sheet_reader)
-        for row in alt_arts_sheet_reader:
-            values = dict(zip(columns, row))
-            if len(values[CARD_NAME]) > 0:
-                full_alt_art_name = f"{values[CARD_NAME]} - {values[DESCRIPTOR]}"
-                values[CARD_NAME] = full_alt_art_name
-                alt_arts[full_alt_art_name] = values
-
-    return cards, tokens, basic_lands, alt_arts
-
-
-def cardname_to_filename(card_name: str) -> str:
-    file_name = card_name.replace("’", "'")
-    for bad_char in CHAR_TO_TITLE_CHAR.keys():
-        file_name = file_name.replace(bad_char, CHAR_TO_TITLE_CHAR[bad_char])
-    return file_name
-
-
-def open_card_file(file_name: str) -> Image.Image | None:
-    try:
-
-        if len(file_name) > 0:
-            base_card = Image.open(f"cards/unprocessed_cards/{file_name}.png")
-        else:
-            return None
-
-    except FileNotFoundError:
-
-        try:
-            new_file_name = file_name.replace("'", "’")
-            base_card = Image.open(f"cards/unprocessed_cards/{new_file_name}.png")
-        except FileNotFoundError:
-            log(f"""Couldn't find "{file_name}".""")
-            return None
-
-    return base_card
 
 
 def process_card(
@@ -197,7 +40,7 @@ def process_card(
         frame_type = "wide_horizontal"
         card_width = 2814
         card_height = 2010
-        width_mult = 1.34
+        width_mult = BATTLE_CARD_MULT
         orientation = "horizontal"
     else:
         frame_type = "standard"
@@ -380,7 +223,7 @@ def process_cards(
         if only_updated and card[UPDATED] == "FALSE":
             continue
 
-        process_card(card, num, len(cards))
+        process_card(card, num + 1, len(cards))
         for backside in card["Transform Backsides"]:
             process_card(backside, num + 1, num_cards, card, indent=True)
 
@@ -426,7 +269,7 @@ def process_alt_arts(alt_arts: dict[str, dict[str, str]], num_alt_arts: int):
     alt_arts_name_list.sort(
         key=lambda alt_art_name: (
             datetime.strptime(alt_arts[alt_art_name][CARD_DATE], "%m/%d/%Y"),
-            alt_arts[alt_art_name][CARD_NAME]
+            alt_arts[alt_art_name][CARD_NAME],
         )
     )
 
