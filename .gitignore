@@ -1,7 +1,9 @@
-spreadsheets/*
-cards/card_tilings/*
-cards/processed_cards/*
-cards/unprocessed_cards/*
+spreadsheets/*.csv
+cards/card_tilings/*.png
+cards/card_tilings/quarantine/*.png
+cards/processed_cards/*.png
+cards/processed_cards/quarantine/*.png
+cards/unprocessed_cards/*.png
 
 log.txt
 report.txt

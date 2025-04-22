@@ -106,7 +106,9 @@ def process_spreadsheets() -> tuple[
 
                 front_card_name = values[FRONT_CARD_NAME].strip()
                 if len(front_card_name) > 0:
-                    full_front_card_name = f"{front_card_name} - {values[FRONT_CARD_DESCRIPTOR]}"
+                    full_front_card_name = (
+                        f"{front_card_name} - {values[FRONT_CARD_DESCRIPTOR]}"
+                    )
                     values[FRONT_CARD_NAME] = full_front_card_name
                     transform_backsides.append(values)
                 else:
@@ -130,13 +132,13 @@ def cardname_to_filename(card_name: str) -> str:
 
 
 def open_card_file(
-    file_name: str, processed_unprocessed: str = "unprocessed"
+    file_name: str, card_path: str = "unprocessed_cards/"
 ) -> Image.Image | None:
     try:
 
         if len(file_name) > 0:
             base_card = Image.open(
-                f"cards/{processed_unprocessed}_cards/{file_name}.png"
+                f"cards/{card_path}{file_name}.png"
             )
         else:
             return None
@@ -146,10 +148,10 @@ def open_card_file(
         try:
             new_file_name = file_name.replace("'", "’")
             base_card = Image.open(
-                f"cards/{processed_unprocessed}_cards/{new_file_name}.png"
+                f"cards/{card_path}{new_file_name}.png"
             )
         except FileNotFoundError:
-            log(f"""Couldn't find "{file_name}" in "{processed_unprocessed}_cards".""")
+            log(f"""Couldn't find "{file_name}" in "{card_path}".""")
             return None
 
     return base_card

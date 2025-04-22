@@ -1,3 +1,4 @@
+import io
 from PIL import Image
 
 from model.Layer import Layer
@@ -29,6 +30,17 @@ class Card:
         self.base_height = base_height
         self.layers = layers if layers is not None else []
 
+    def _image_is_valid(self, image: Image.Image):
+        try:
+            with io.BytesIO() as buffer:
+                image.save(buffer, format="PNG")
+                buffer.seek(0)
+                with Image.open(buffer) as temp:
+                    temp.verify()
+            return True
+        except Exception as e:
+            return False
+
     def add_layer(
         self,
         image: Image.Image | str,
@@ -52,6 +64,9 @@ class Card:
 
         if isinstance(image, str):
             image = Image.open(image)
+
+        if not self._image_is_valid(image):
+            raise AttributeError
 
         if index == None:
             self.layers.append(Layer(image, position))

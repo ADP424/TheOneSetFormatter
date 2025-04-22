@@ -27,7 +27,8 @@ def process_card(
     card: dict[str, str | dict[str, str]],
     card_num: int,
     num_cards: int,
-    parent_card: dict[str, str | dict[str, str]] = None
+    parent_card: dict[str, str | dict[str, str]] = None,
+    quarantine: bool = False,
 ):
     file_name = cardname_to_filename(card[CARD_NAME])
 
@@ -92,11 +93,17 @@ def process_card(
     card_overlay.add_layer(base_card, 0)
 
     final_card = card_overlay.merge_layers()
-    final_card.save(f"cards/processed_cards/{file_name}.png")
-    log(f"""{"\t" if parent_card is not None else ""}Successfully processed "{card[CARD_NAME]}".""")
+    final_card.save(
+        f"cards/processed_cards/{"quarantine/" if quarantine else ""}{file_name}.png"
+    )
+    log(
+        f"""{"\t" if parent_card is not None else ""}Successfully processed "{card[CARD_NAME]}"."""
+    )
 
 
-def process_token(token: dict[str, str], token_num: int, num_tokens: int):
+def process_token(
+    token: dict[str, str], token_num: int, num_tokens: int, quarantine: bool = False
+):
     file_name = cardname_to_filename(token[CARD_NAME])
 
     base_token = open_card_file(file_name)
@@ -126,11 +133,18 @@ def process_token(token: dict[str, str], token_num: int, num_tokens: int):
     token_overlay.add_layer(base_token, 0)
 
     final_token = token_overlay.merge_layers()
-    final_token.save(f"cards/processed_cards/{file_name}.png")
+    final_token.save(
+        f"cards/processed_cards/{"quarantine/" if quarantine else ""}{file_name}.png"
+    )
     log(f"""Successfully processed "{file_name}".""")
 
 
-def process_basic_land(basic_land: dict[str, str], basic_land_num: int, num_cards: int):
+def process_basic_land(
+    basic_land: dict[str, str],
+    basic_land_num: int,
+    num_cards: int,
+    quarantine: bool = False,
+):
     file_name = cardname_to_filename(basic_land[CARD_NAME])
 
     base_basic_land = open_card_file(file_name)
@@ -160,17 +174,25 @@ def process_basic_land(basic_land: dict[str, str], basic_land_num: int, num_card
     basic_land_overlay.add_layer(base_basic_land, 0)
 
     final_basic_land = basic_land_overlay.merge_layers()
-    final_basic_land.save(f"cards/processed_cards/{file_name}.png")
+    final_basic_land.save(
+        f"cards/processed_cards/{"quarantine/" if quarantine else ""}{file_name}.png"
+    )
     log(f"""Successfully processed "{file_name}".""")
 
 
-def process_alt_art(alt_art: dict[str, str], alt_art_num: int, num_alt_arts: int, parent_alt_art: dict[str, str] = None):
+def process_alt_art(
+    alt_art: dict[str, str],
+    alt_art_num: int,
+    num_alt_arts: int,
+    parent_alt_art: dict[str, str] = None,
+    quarantine: bool = False,
+):
     file_name = cardname_to_filename(alt_art[CARD_NAME])
 
     base_alt_art = open_card_file(file_name)
     if base_alt_art is None:
         return
-    
+
     if "Battle" in alt_art[CARD_TYPES]:
         frame_type = "wide_horizontal"
         card_width = 2814
@@ -229,14 +251,20 @@ def process_alt_art(alt_art: dict[str, str], alt_art_num: int, num_alt_arts: int
     alt_art_overlay.add_layer(base_alt_art, 0)
 
     final_alt_art = alt_art_overlay.merge_layers()
-    final_alt_art.save(f"cards/processed_cards/{file_name}.png")
-    log(f"""{"\t" if parent_alt_art is not None else ""}Successfully processed "{file_name}".""")
+    final_alt_art.save(
+        f"cards/processed_cards/{"quarantine/" if quarantine else ""}{file_name}.png"
+    )
+    log(
+        f"""{"\t" if parent_alt_art is not None else ""}Successfully processed "{file_name}"."""
+    )
 
 
 def process_cards(
     cards: dict[str, dict[str, str | dict[str, str]]],
     num_cards: int,
     only_updated: bool = False,
+    card_names_to_process: list[str] = None,
+    quarantine: bool = False,
 ):
     log(f"\n----- PROCESSING{" UPDATED" if only_updated else ""} CARDS -----\n")
 
@@ -249,16 +277,24 @@ def process_cards(
     )
 
     for num, card_name in enumerate(card_name_list):
+        if card_names_to_process is not None and card_name not in card_names_to_process:
+            continue
+
         card = cards[card_name]
         if only_updated and card[UPDATED] == "FALSE":
             continue
 
-        process_card(card, num + 1, len(cards))
+        process_card(card, num + 1, len(cards), quarantine=quarantine)
         for backside in card["Transform Backsides"]:
-            process_card(backside, num + 1, num_cards, card)
+            process_card(backside, num + 1, num_cards, parent_card=card, quarantine=quarantine)
 
 
-def process_tokens(tokens: dict[str, dict[str, str]], num_tokens: int):
+def process_tokens(
+    tokens: dict[str, dict[str, str]],
+    num_tokens: int,
+    card_names_to_process: list[str] = None,
+    quarantine: bool = False,
+):
     log("\n----- PROCESSING TOKENS -----\n")
 
     token_name_list = list(tokens.keys())
@@ -270,12 +306,22 @@ def process_tokens(tokens: dict[str, dict[str, str]], num_tokens: int):
     )
 
     for num, token_name in enumerate(token_name_list):
+        if (
+            card_names_to_process is not None
+            and token_name not in card_names_to_process
+        ):
+            continue
+
         token = tokens[token_name]
-        process_token(token, num + 1, num_tokens)
+        process_token(token, num + 1, num_tokens, quarantine=quarantine)
 
 
 def process_basic_lands(
-    basic_lands: dict[str, dict[str, str]], num_cards: int, num_basic_lands: int
+    basic_lands: dict[str, dict[str, str]],
+    num_cards: int,
+    num_basic_lands: int,
+    card_names_to_process: list[str] = None,
+    quarantine: bool = False,
 ):
     log("\n----- PROCESSING BASIC LANDS -----\n")
 
@@ -288,11 +334,24 @@ def process_basic_lands(
     )
 
     for num, basic_land_name in enumerate(basic_land_name_list):
+        if (
+            card_names_to_process is not None
+            and basic_land_name not in card_names_to_process
+        ):
+            continue
+
         basic_land = basic_lands[basic_land_name]
-        process_basic_land(basic_land, num_cards - num_basic_lands + num + 1, num_cards)
+        process_basic_land(
+            basic_land, num_cards - num_basic_lands + num + 1, num_cards, quarantine=quarantine
+        )
 
 
-def process_alt_arts(alt_arts: dict[str, dict[str, str]], num_alt_arts: int):
+def process_alt_arts(
+    alt_arts: dict[str, dict[str, str]],
+    num_alt_arts: int,
+    card_names_to_process: list[str] = None,
+    quarantine: bool = False,
+):
     log("\n----- PROCESSING ALT ARTS -----\n")
 
     alt_arts_name_list = list(alt_arts.keys())
@@ -304,23 +363,24 @@ def process_alt_arts(alt_arts: dict[str, dict[str, str]], num_alt_arts: int):
     )
 
     for num, alt_art_name in enumerate(alt_arts_name_list):
+        if (
+            card_names_to_process is not None
+            and alt_art_name not in card_names_to_process
+        ):
+            continue
+
         alt_art = alt_arts[alt_art_name]
-        process_alt_art(alt_art, num + 1, num_alt_arts)
-
+        process_alt_art(alt_art, num + 1, num_alt_arts, quarantine=quarantine)
         for backside in alt_art.get("Transform Backsides", []):
-            process_alt_art(backside, num + 1, num_alt_arts, alt_art)
+            process_alt_art(backside, num + 1, num_alt_arts, parent_alt_art=alt_art, quarantine=quarantine)
 
 
-def find_files_not_in_spreadsheets(
+def generate_report(
     cards: dict[str, dict[str, str | dict[str, str]]],
     tokens: dict[str, dict[str, str]],
     basic_lands: dict[str, dict[str, str]],
     alt_arts: dict[str, dict[str, str | dict[str, str]]],
 ):
-    """
-    Finds the names of any files in cards/unprocessed_cards that aren't in the spreadsheet.
-    """
-
     unprocessed_cards = [
         f[:-4].replace("’", "'")
         for f in os.listdir("cards/unprocessed_cards")
@@ -358,6 +418,13 @@ def find_files_not_in_spreadsheets(
     ]
 
     extra2 = set(unprocessed_cards) - set(processed_cards)
+
+    quarantined_processed_cards = [
+        f[:-4].replace("’", "'")
+        for f in os.listdir("cards/processed_cards/quarantine")
+        if f.endswith(".png")
+    ]
+
     with open("report.txt", "w", encoding="utf8") as report_file:
         report_file.write("----- UNPROCESSED CARDS NOT IN SPREADSHEETS -----\n\n")
         for name in extra1:
@@ -366,6 +433,11 @@ def find_files_not_in_spreadsheets(
         report_file.write("\n\n----- CARDS NOT PROCESSED -----\n\n")
         for name in extra2:
             report_file.write(f"{name}\n")
+
+        report_file.write("\n\n----- PROCESSED CARDS BOTH IN AND OUT OF QUARANTINE -----\n\n")
+        for name in quarantined_processed_cards:
+            if name in processed_cards:
+                report_file.write(f"{name}\n")
 
     log("\n----- PROCESSED REPORT -----\n")
 
@@ -376,7 +448,9 @@ def main(
     do_basic_lands: bool = True,
     do_alt_arts: bool = True,
     only_updated: bool = False,
-    find_files: bool = False,
+    report: bool = False,
+    card_names_to_process: list[str] = None,
+    quarantine: bool = False,
 ):
     reset_log()
     cards, tokens, basic_lands, alt_arts = process_spreadsheets()
@@ -387,16 +461,24 @@ def main(
     num_alt_arts = len(alt_arts)
 
     if do_cards:
-        process_cards(cards, num_mainline_cards, only_updated)
+        process_cards(
+            cards, num_mainline_cards, only_updated, card_names_to_process, quarantine
+        )
     if do_tokens:
-        process_tokens(tokens, num_tokens)
+        process_tokens(tokens, num_tokens, card_names_to_process, quarantine)
     if do_basic_lands:
-        process_basic_lands(basic_lands, num_mainline_cards, num_basic_lands)
+        process_basic_lands(
+            basic_lands,
+            num_mainline_cards,
+            num_basic_lands,
+            card_names_to_process,
+            quarantine,
+        )
     if do_alt_arts:
-        process_alt_arts(alt_arts, num_alt_arts)
+        process_alt_arts(alt_arts, num_alt_arts, card_names_to_process, quarantine)
 
-    if find_files:
-        find_files_not_in_spreadsheets(cards, tokens, basic_lands, alt_arts)
+    if report:
+        generate_report(cards, tokens, basic_lands, alt_arts)
 
 
 if __name__ == "__main__":
@@ -438,11 +520,25 @@ if __name__ == "__main__":
         dest="only_updated",
     )
     parser.add_argument(
-        "-ff",
-        "--find-files",
+        "-r",
+        "--report",
         action="store_true",
-        help="Generate a report on which files in cards/unprocessed_cards aren't in the spreadsheets.",
-        dest="find_files",
+        help="Generate a report of the state of the 'cards' directory.",
+        dest="report",
+    )
+    parser.add_argument(
+        "-cn",
+        "--card-names",
+        nargs="+",
+        help="Only process the cards (including tokens, alt arts, etc.) with these names.",
+        dest="card_names_to_process",
+    )
+    parser.add_argument(
+        "-q",
+        "--quarantine",
+        action="store_true",
+        help="Put all the cards generated into a quarantine folder.",
+        dest="quarantine",
     )
 
     args = parser.parse_args()
@@ -452,5 +548,7 @@ if __name__ == "__main__":
         args.basic_lands,
         args.alt_arts,
         args.only_updated,
-        args.find_files,
+        args.report,
+        args.card_names_to_process,
+        args.quarantine,
     )
