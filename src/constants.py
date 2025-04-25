@@ -57,6 +57,16 @@ POKER_BORDERS = {
     "B": "necro",
     "R": "joker",
     "G": "wild",
+    "WU": "fold_echo",
+    "WB": "fold_necro",
+    "WR": "fold_joker",
+    "WG": "fold_wild",
+    "UB": "echo_necro",
+    "UR": "echo_joker",
+    "UG": "echo_wild",
+    "BR": "necro_joker",
+    "BG": "necro_wild",
+    "RG": "joker_wild",
     "Colorless": "glass",
 }
 

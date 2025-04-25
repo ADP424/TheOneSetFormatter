@@ -59,7 +59,9 @@ def process_card(
     if "Poker" in archetype:
         color = card[CARD_COLOR].strip()
         border = POKER_BORDERS.get(color, "black")
-        card_overlay.add_layer(f"images/{frame_type}/borders/{border}.png")
+        if len(color) == 1 and "Wastes":
+            border = f"glass_{border}"
+        card_overlay.add_layer(f"images/{frame_type}/borders/poker/{border}.png")
     else:
         card_overlay.add_layer(f"images/{frame_type}/borders/black.png")
 
@@ -220,33 +222,33 @@ def process_alt_art(
     else:
         alt_art_overlay.add_layer(f"images/{frame_type}/borders/black.png")
 
-    alt_art_overlay.add_layer("images/standard/borders/black.png")
+    alt_art_overlay.add_layer(f"images/{frame_type}/borders/black.png")
 
-    alt_art_overlay.add_layer("images/standard/collection/set_name.png")
+    alt_art_overlay.add_layer(f"images/{frame_type}/collection/set_name.png")
 
     year = datetime.strptime(alt_art[CARD_DATE], "%m/%d/%Y").year
-    alt_art_overlay.add_layer(f"images/standard/years/{year}.png")
+    alt_art_overlay.add_layer(f"images/{frame_type}/years/{year}.png")
 
     rarity = alt_art[CARD_RARITY].lower()
-    alt_art_overlay.add_layer(f"images/standard/rarities/{rarity}.png")
+    alt_art_overlay.add_layer(f"images/{frame_type}/rarities/{rarity}.png")
 
     number = str(alt_art_num).zfill(len(str(num_alt_arts)))
     offset = 0
     for char in number:
         if orientation == "vertical":
             alt_art_overlay.add_layer(
-                f"images/standard/numbers/{char}.png",
+                f"images/{frame_type}/numbers/{char}.png",
                 position=(int(offset) * width_mult, 0),
             )
         else:
             alt_art_overlay.add_layer(
-                f"images/standard/numbers/{char}.png",
+                f"images/{frame_type}/numbers/{char}.png",
                 position=(0, int(offset * width_mult)),
             )
         offset += NUMBER_WIDTHS[char]
 
     if "Foil" in file_name:
-        alt_art_overlay.add_layer("images/standard/overlays/foil.png")
+        alt_art_overlay.add_layer(f"images/{frame_type}/overlays/foil.png")
 
     alt_art_overlay.add_layer(base_alt_art, 0)
 
