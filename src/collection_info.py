@@ -59,7 +59,7 @@ def process_card(
     if "Poker" in archetype:
         color = card[CARD_COLOR].strip()
         border = POKER_BORDERS.get(color, "black")
-        if len(color) == 1 and "Wastes":
+        if len(color) == 1 and "Wastes" in archetype:
             border = f"glass_{border}"
         card_overlay.add_layer(f"images/{frame_type}/borders/poker/{border}.png")
     else:
@@ -427,13 +427,19 @@ def generate_report(
         if f.endswith(".png")
     ]
 
+    extra3 = set(unprocessed_cards) - set(processed_cards) - set(quarantined_processed_cards)
+
     with open("report.txt", "w", encoding="utf8") as report_file:
         report_file.write("----- UNPROCESSED CARDS NOT IN SPREADSHEETS -----\n\n")
         for name in extra1:
             report_file.write(f"{name}\n")
 
-        report_file.write("\n\n----- CARDS NOT PROCESSED -----\n\n")
+        report_file.write("\n\n----- CARDS NOT PROCESSED NORMALLY -----\n\n")
         for name in extra2:
+            report_file.write(f"{name}\n")
+
+        report_file.write("\n\n----- CARDS NOT PROCESSED NORMALLY OR QUARANTINED -----\n\n")
+        for name in extra3:
             report_file.write(f"{name}\n")
 
         report_file.write("\n\n----- PROCESSED CARDS BOTH IN AND OUT OF QUARANTINE -----\n\n")
